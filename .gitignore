@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Local tooling caches
+.vite/
+.cache/
+coverage/
+
+# Environment & secrets
+.env
+.env.*
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Editor & OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

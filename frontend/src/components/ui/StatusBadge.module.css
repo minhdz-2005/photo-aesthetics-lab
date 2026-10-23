@@ -1,0 +1,59 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px 2px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in oklab, var(--tone) 32%, transparent);
+  background: var(--tone-soft);
+  color: var(--tone);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge[data-tone='good'] {
+  --tone: var(--status-scored);
+  --tone-soft: var(--status-scored-soft);
+}
+
+.badge[data-tone='fair'] {
+  --tone: var(--color-ink-muted);
+  --tone-soft: var(--color-surface-sunken);
+}
+
+.badge[data-tone='watch'] {
+  --tone: var(--status-attention);
+  --tone-soft: var(--status-attention-soft);
+}
+
+.badge[data-tone='unknown'] {
+  --tone: var(--status-insufficient);
+  --tone-soft: var(--status-insufficient-soft);
+}
+
+.badge[data-tone='not-applicable'] {
+  --tone: var(--status-not-applicable);
+  --tone-soft: var(--status-not-applicable-soft);
+}
+
+.badge[data-tone='failed'] {
+  --tone: var(--status-error);
+  --tone-soft: var(--status-error-soft);
+}
+
+.glyph {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
+.raw {
+  margin-left: 2px;
+  padding-left: var(--space-2);
+  border-left: 1px solid color-mix(in oklab, var(--tone) 25%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 400;
+  color: var(--color-ink-faint);
+}

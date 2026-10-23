@@ -1,0 +1,146 @@
+.card {
+  --tone: var(--color-ink-faint);
+  position: relative;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: 0;
+  width: 3px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  background: var(--tone);
+}
+
+.card[data-tone='good'] {
+  --tone: var(--status-scored);
+}
+
+.card[data-tone='fair'] {
+  --tone: var(--color-ink-faint);
+}
+
+.card[data-tone='watch'] {
+  --tone: var(--status-attention);
+}
+
+.card[data-tone='unknown'] {
+  --tone: var(--status-insufficient);
+}
+
+.card[data-tone='not-applicable'] {
+  --tone: var(--status-not-applicable);
+}
+
+.card[data-tone='failed'] {
+  --tone: var(--status-error);
+}
+
+.card[data-tone='not-applicable'],
+.card[data-tone='unknown'] {
+  background: var(--color-surface-sunken);
+  box-shadow: none;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.name {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: 650;
+  letter-spacing: -0.005em;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+}
+
+.separator {
+  color: var(--color-line-strong);
+}
+
+.version {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+}
+
+.description {
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.meter {
+  display: flex;
+  flex: 1;
+  min-width: 140px;
+  gap: 4px;
+}
+
+.segment {
+  flex: 1;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--color-surface-sunken);
+  outline: 1px solid var(--color-line);
+  outline-offset: -1px;
+}
+
+.segment[data-filled='true'] {
+  background: var(--tone);
+  outline-color: var(--tone);
+}
+
+.anchors {
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+}
+
+.condition {
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--tone);
+  background: color-mix(in oklab, var(--tone) 8%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+}
+
+.suggestion {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+
+.confidence {
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  border-top: 1px dashed var(--color-line);
+  padding-top: var(--space-2);
+}

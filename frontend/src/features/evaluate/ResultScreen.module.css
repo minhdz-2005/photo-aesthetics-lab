@@ -1,0 +1,136 @@
+.screen {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.topStatus {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+}
+
+.layout {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.photoCol {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.photo {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.photoImage {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 26rem;
+  object-fit: cover;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.photoImage[data-expanded='true'] {
+  aspect-ratio: auto;
+  max-height: none;
+  object-fit: contain;
+  background: var(--color-surface-sunken);
+}
+
+.photoBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.fileName {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+  overflow-wrap: anywhere;
+}
+
+.resultCol {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.resultHead {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.kicker {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-accent-strong);
+}
+
+.resultHead h1 {
+  max-width: 26ch;
+}
+
+.subline {
+  font-size: var(--text-lg);
+  color: var(--color-ink-muted);
+  max-width: 58ch;
+}
+
+.criteriaNote {
+  margin: calc(var(--space-2) * -1) 0 var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-ink-faint);
+}
+
+.cards {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.missing {
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+}
+
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 25rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .photoCol {
+    position: sticky;
+    top: 5.5rem;
+  }
+
+  /* Ảnh đang xem ở cỡ lớn cần toàn bề ngang; cột kết quả dồn xuống dưới. */
+  .layout:has(.photoImage[data-expanded='true']) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .layout:has(.photoImage[data-expanded='true']) .photoCol {
+    position: static;
+  }
+}

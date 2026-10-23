@@ -1,0 +1,50 @@
+.chip {
+  display: grid;
+  gap: 2px;
+  min-width: 9.5rem;
+}
+
+.name {
+  font-weight: 650;
+  font-size: var(--text-sm);
+  letter-spacing: -0.005em;
+}
+
+.match {
+  font-size: var(--text-2xs);
+  color: var(--color-ink-muted);
+  line-height: 1.35;
+}
+
+.meterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.track {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in oklab, var(--color-line-strong) 45%, transparent);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+}
+
+.score {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--color-ink-faint);
+}
+
+.caption {
+  font-size: var(--text-2xs);
+  color: var(--color-ink-faint);
+}

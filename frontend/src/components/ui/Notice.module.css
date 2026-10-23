@@ -1,0 +1,23 @@
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-line-strong);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.info {
+  background: var(--color-surface-sunken);
+  color: var(--color-ink-muted);
+  border-left-color: var(--color-accent);
+}
+
+.caution {
+  background: var(--status-attention-soft);
+  color: oklch(38% 0.07 72);
+  border-left-color: var(--status-attention);
+}

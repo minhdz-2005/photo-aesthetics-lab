@@ -1,0 +1,86 @@
+/*
+  Design tokens — hướng "editorial lab": nền giấy ấm, mực đậm, một accent xám-xanh.
+  Palette chọn có chủ đích theo docs/ui-specification.md: ảnh là trọng tâm,
+  trạng thái dùng màu tiết chế và KHÔNG dùng xanh/đỏ như đúng/sai tuyệt đối.
+*/
+:root {
+  /* Canvas & surfaces */
+  --color-canvas: oklch(97.5% 0.006 85);
+  --color-surface: oklch(99.4% 0.004 85);
+  --color-surface-sunken: oklch(94.6% 0.009 85);
+  --color-surface-inverse: oklch(23% 0.014 75);
+
+  /* Lines */
+  --color-line: oklch(88% 0.009 85);
+  --color-line-strong: oklch(76% 0.014 80);
+
+  /* Ink */
+  --color-ink: oklch(23% 0.014 75);
+  --color-ink-muted: oklch(46% 0.016 75);
+  --color-ink-faint: oklch(60% 0.014 80);
+
+  /* Accent */
+  --color-accent: oklch(45% 0.075 245);
+  --color-accent-strong: oklch(33% 0.07 245);
+  --color-accent-soft: oklch(94% 0.022 245);
+  --color-focus: oklch(62% 0.13 250);
+
+  /* Status — bốn trạng thái của evaluator worker, tách biệt về sắc độ lẫn hue */
+  --status-scored: oklch(47% 0.07 197);
+  --status-scored-soft: oklch(94% 0.024 197);
+  --status-attention: oklch(55% 0.105 72);
+  --status-attention-soft: oklch(94% 0.035 75);
+  --status-insufficient: oklch(54% 0.022 265);
+  --status-insufficient-soft: oklch(94% 0.01 265);
+  --status-not-applicable: oklch(56% 0.014 90);
+  --status-not-applicable-soft: oklch(95% 0.006 90);
+  --status-error: oklch(49% 0.108 27);
+  --status-error-soft: oklch(94% 0.03 27);
+
+  /* Typography — display serif + body humanist sans + mono cho id/phiên bản */
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --font-body: 'Segoe UI Variable Text', 'Segoe UI', -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: clamp(0.9375rem, 0.9rem + 0.15vw, 1rem);
+  --text-lg: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
+  --text-xl: clamp(1.35rem, 1.15rem + 0.9vw, 1.9rem);
+  --text-hero: clamp(1.9rem, 1.35rem + 2.3vw, 3rem);
+
+  --leading-tight: 1.15;
+  --leading-body: 1.62;
+  --tracking-label: 0.09em;
+
+  /* Spacing — nhịp 4/8, không padding đồng nhất mọi nơi */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+  --space-9: 6rem;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px oklch(23% 0.014 75 / 0.05), 0 8px 24px oklch(23% 0.014 75 / 0.06);
+  --shadow-raised: 0 2px 4px oklch(23% 0.014 75 / 0.08), 0 18px 40px oklch(23% 0.014 75 / 0.12);
+
+  /* Motion */
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 700ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Layout — breakpoints: 560px, 900px, 1200px */
+  --page-max: 1220px;
+  --gutter: clamp(1rem, 0.6rem + 1.8vw, 2.5rem);
+}
