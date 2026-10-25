@@ -21,6 +21,8 @@ Trạng thái: **chưa có code, chưa có tập ảnh**.
 - Các cặp nhãn thường bị nhầm.
 - Tỷ lệ ảnh cần xem lại.
 - Thời gian xử lý và lỗi khi model không trả kết quả hợp lệ.
+- Zero-shot + taxonomy so với classifier fine-tune, chạy trên **cùng tập ảnh**.
+- Nhóm riêng cho ảnh giao thoa chủ thể/ngữ cảnh: một người đứng giữa núi phải ra `portrait` theo spec.
 
 **Bước 2 — style** ([style-analyzer](../style-analyzer/README.md))
 
