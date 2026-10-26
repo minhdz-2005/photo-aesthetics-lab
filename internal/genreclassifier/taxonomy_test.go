@@ -29,3 +29,19 @@ func TestLoadTaxonomyReadsValidFile(t *testing.T) {
 		t.Errorf("Prompt = %q, want %q", got, want)
 	}
 }
+
+// The production taxonomy is data, not code, so it needs a test of its own.
+// Loading it runs the same validate() the CLI runs, so an edit that makes
+// "other" compete as a candidate fails here rather than in production.
+func TestProductionTaxonomyLoads(t *testing.T) {
+	tax, err := LoadTaxonomy(filepath.Join("..", "..", "ai", "genre-classifier", "taxonomy", "genre-v1.json"))
+	if err != nil {
+		t.Fatalf("genre-v1.json must load: %v", err)
+	}
+	if got, want := len(tax.Candidates(GroupGenre)), 7; got != want {
+		t.Errorf("genre candidates = %d, want %d", got, want)
+	}
+	if got, want := len(tax.Candidates(GroupTag)), 2; got != want {
+		t.Errorf("tag candidates = %d, want %d", got, want)
+	}
+}

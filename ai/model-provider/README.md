@@ -49,7 +49,7 @@ Hệ quả với lớp này:
 
 Đi ra:
 
-- Điểm cho từng nhãn ứng viên, theo đúng thứ tự/không tự thêm nhãn ngoài danh sách.
+- Điểm cho từng nhãn ứng viên, theo đúng thứ tự/không tự thêm nhãn ngoài danh sách. **Điều kiện cứng với bước 1:** trả đủ điểm cho **toàn bộ** ứng viên đưa lên, không phải top-k. Thiếu một ứng viên là `error`, vì renormalize trong nhóm cần tổng đủ mọi điểm (spec §3.1). Chưa kiểm chứng bằng chạy thật — xem [integration probe](../../docs/superpowers/plans/2026-10-26-genre-classifier.md#task-14-kiểm-chứng-bằng-một-lượt-gọi-thật).
 - Id model và phiên bản đã dùng.
 - Log thô của model khi có, phục vụ [evaluation](../evaluation/README.md).
 

@@ -2910,6 +2910,9 @@ Với `N_genre = 7`: mức đều `1/7 ≈ 0.1429`, floor thực tế `≈ 0.214
 Nối vào `internal/genreclassifier/taxonomy_test.go`:
 
 ```go
+// The production taxonomy is data, not code, so it needs a test of its own.
+// Loading it runs the same validate() the CLI runs, so an edit that makes
+// "other" compete as a candidate fails here rather than in production.
 func TestProductionTaxonomyLoads(t *testing.T) {
 	tax, err := LoadTaxonomy(filepath.Join("..", "..", "ai", "genre-classifier", "taxonomy", "genre-v1.json"))
 	if err != nil {
@@ -2918,15 +2921,15 @@ func TestProductionTaxonomyLoads(t *testing.T) {
 	if got, want := len(tax.Candidates(GroupGenre)), 7; got != want {
 		t.Errorf("genre candidates = %d, want %d", got, want)
 	}
-	if tax.FallbackGenre == "other" {
-		for _, c := range tax.Cands {
-			if c.ID == "other" {
-				t.Error("other must not compete as a candidate")
-			}
-		}
+	if got, want := len(tax.Candidates(GroupTag)), 2; got != want {
+		t.Errorf("tag candidates = %d, want %d", got, want)
 	}
 }
 ```
+
+`validate()` đã chặn `c.ID == t.FallbackGenre` ngay trong `LoadTaxonomy`, nên không cần vòng lặp kiểm `other`
+nữa — nếu file thêm `other` làm ứng viên thì `t.Fatalf` ở dòng thứ hai đã bắt được. Thay vào đó là test
+đếm tag, cũng là ràng buộc thật của `pickTags`.
 
 ```bash
 go test ./internal/genreclassifier/ -run TestProductionTaxonomyLoads -v

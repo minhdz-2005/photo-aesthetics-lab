@@ -4,7 +4,7 @@ Bước 1 trong luồng. Nhận một ảnh và trả thể loại chính để 
 
 Chi tiết gốc: [docs/step-01-image-genre-classification.md](../../docs/step-01-image-genre-classification.md)
 
-Trạng thái: **chưa có code**.
+Trạng thái: **đang implement** theo [spec](../../docs/superpowers/specs/2026-10-25-genre-classifier-pipeline-design.md) và [plan](../../docs/superpowers/plans/2026-10-26-genre-classifier.md). Code: `internal/genreclassifier` (package) và `cmd/genre-classify` (CLI); dữ liệu: [taxonomy/genre-v1.json](taxonomy/genre-v1.json).
 
 ## Nhiệm vụ
 
@@ -55,7 +55,7 @@ Vì rủi ro nằm ở phương pháp chứ không ở hợp đồng, bước n�
 }
 ```
 
-`score` là điểm xếp hạng nhãn, không phải xác suất đã hiệu chỉnh. `status` là `classified` hoặc `needs_review`.
+`score` là **tỷ lệ trong nhóm** (`q`, làm tròn 4 chữ số), không phải xác suất đã hiệu chỉnh. `alternatives` liệt kê tối đa 3 nhãn đứng sau nhãn chính, và **không chứa `other`** vì nhãn này không tranh đua bằng điểm. `status` là `classified` hoặc `needs_review`; khi `primary_genre` là `other`, `alternatives` vẫn gồm cả nhãn dẫn đầu để người xem có chẩn đoán.
 
 ## Chọn nhãn và đặt trạng thái
 
@@ -67,7 +67,7 @@ Vì rủi ro nằm ở phương pháp chứ không ở hợp đồng, bước n�
 | Nhãn tốt nhất và nhãn hai cách nhau dưới ngưỡng margin | nhãn tốt nhất | `needs_review` |
 | Không nhãn nào vượt ngưỡng ứng viên | `other` | `needs_review` |
 
-Hai ngưỡng (ứng viên hợp lệ, margin) là **tham số chỉnh**, chưa chốt giá trị; phải lấy từ tập ảnh mẫu ở [ai/evaluation](../evaluation/README.md). Ảnh rơi vào `other` mặc định vẫn cần xem lại, vì spec cấm biến trường hợp mơ hồ thành `other` khi chưa có lý do.
+Hai ngưỡng (ứng viên hợp lệ, margin) là **tham số chỉnh**, hiện đặt ở điểm khởi điểm `1.5×` và `0.5×` **mức đều của nhóm** (`1/N`), ghi trong [taxonomy/genre-v1.json](taxonomy/genre-v1.json); phải hiệu chỉnh trên tập ảnh mẫu ở [ai/evaluation](../evaluation/README.md). Ngưỡng không thể là điểm tuyệt đối vì một lượt gọi chấm chung hai nhóm nên chỉ còn `q` đã renormalize là có nghĩa. Ảnh rơi vào `other` mặc định vẫn cần xem lại, vì spec cấm biến trường hợp mơ hồ thành `other` khi chưa có lý do.
 
 ## Phiên bản taxonomy
 
