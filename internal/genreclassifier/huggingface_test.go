@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 type captured struct {
@@ -140,5 +141,164 @@ func TestNewHuggingFaceRequiresToken(t *testing.T) {
 		t.Fatal("empty token must fail")
 	} else if !isInput(err) {
 		t.Errorf("empty token is our mistake, not the world's: got %T", err)
+	}
+}
+
+type sequence struct {
+	statuses []int
+	headers  []map[string]string
+	calls    int
+}
+
+func newSequenceProvider(t *testing.T, seq *sequence) (*HuggingFace, *httptest.Server) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		i := seq.calls
+		seq.calls++
+		if i >= len(seq.statuses) {
+			i = len(seq.statuses) - 1
+		}
+		if h := seq.headers[i]; h != nil {
+			for k, v := range h {
+				w.Header().Set(k, v)
+			}
+		}
+		// WriteHeader has to come before the body; writing the body first pins
+		// the status at 200 and every retryable case silently turns into success.
+		status := seq.statuses[i]
+		w.WriteHeader(status)
+		if status == http.StatusOK {
+			io.WriteString(w, `[{"label":"a person","score":0.9},{"label":"a landscape","score":0.1}]`)
+		} else {
+			io.WriteString(w, `{"error":"temporary"}`)
+		}
+	}))
+	p, err := NewHuggingFace("test/model", "tok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.BaseURL = srv.URL + "/models/"
+	p.Backoff = time.Millisecond
+	return p, srv
+}
+
+func retryCands() []Candidate {
+	return []Candidate{
+		{Group: GroupGenre, ID: "portrait", Prompt: "a person"},
+		{Group: GroupGenre, ID: "landscape", Prompt: "a landscape"},
+	}
+}
+
+func TestHFRetriesTransientFailures(t *testing.T) {
+	cases := []struct {
+		name      string
+		statuses  []int
+		wantCalls int
+		wantOK    bool
+	}{
+		{"500 then 200", []int{500, 200}, 2, true},
+		{"429 then 200", []int{429, 200}, 2, true},
+		{"401 is not retried", []int{401, 200}, 1, false},
+		{"400 is not retried", []int{400, 200}, 1, false},
+		{"two 5xx still fails", []int{500, 503}, 2, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			seq := &sequence{statuses: c.statuses, headers: make([]map[string]string, len(c.statuses))}
+			p, srv := newSequenceProvider(t, seq)
+			defer srv.Close()
+
+			_, err := p.Score(context.Background(), testPhoto(), retryCands())
+			if seq.calls != c.wantCalls {
+				t.Errorf("calls = %d, want %d", seq.calls, c.wantCalls)
+			}
+			if c.wantOK && err != nil {
+				t.Errorf("want success, got %v", err)
+			}
+			if !c.wantOK && err == nil {
+				t.Error("want error")
+			}
+			if err != nil && !isProvider(err) {
+				t.Errorf("error %v must be ProviderError", err)
+			}
+		})
+	}
+}
+
+func TestHFDoesNotRetryABrokenResponse(t *testing.T) {
+	// The server answers 200 with both known prompts while the caller asked for
+	// a third candidate, so decode reports a short response. Asking again would
+	// produce the same short response, so this must be a single call.
+	cands := append(retryCands(), Candidate{Group: GroupGenre, ID: "food", Prompt: "a meal"})
+	seq := &sequence{statuses: []int{200}, headers: make([]map[string]string, 1)}
+	p, srv := newSequenceProvider(t, seq)
+	defer srv.Close()
+
+	if _, err := p.Score(context.Background(), testPhoto(), cands); err == nil {
+		t.Fatal("want error for a short response")
+	} else if seq.calls != 1 {
+		t.Errorf("calls = %d, want 1: schema failures must not be retried", seq.calls)
+	}
+}
+
+func TestHFRespectsContextDeadline(t *testing.T) {
+	blocked := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-blocked // held until the test unblocks it, or is canceled by the deadline
+	}))
+	// srv.Close waits for in-flight handlers, so unblocking must be the first
+	// defer to run: registration order puts it last, and defers run in reverse.
+	defer srv.Close()
+	defer close(blocked)
+
+	p, err := NewHuggingFace("test/model", "tok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.BaseURL = srv.URL + "/models/"
+	p.Backoff = time.Hour // a retry sleep this long must be cut short, not honoured
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	_, err = p.Score(ctx, testPhoto(), retryCands())
+	if err == nil {
+		t.Fatal("a hung server must produce an error")
+	}
+	if !isProvider(err) {
+		t.Errorf("error %v must be ProviderError", err)
+	}
+	if !strings.Contains(err.Error(), "context deadline exceeded") {
+		t.Errorf("error = %q, want it to mention the deadline", err.Error())
+	}
+}
+
+func TestHFRetriesAfterRetryAfterHeader(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			w.Header().Set("Retry-After", "0")
+			w.WriteHeader(http.StatusTooManyRequests)
+			io.WriteString(w, `{}`)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, `[{"label":"a person","score":0.9},{"label":"a landscape","score":0.1}]`)
+	}))
+	defer srv.Close()
+
+	p, err := NewHuggingFace("test/model", "tok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.BaseURL = srv.URL + "/models/"
+	p.Backoff = time.Millisecond
+
+	if _, err := p.Score(context.Background(), testPhoto(), retryCands()); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Errorf("calls = %d, want 2", calls)
 	}
 }

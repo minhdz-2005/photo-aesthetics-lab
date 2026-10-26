@@ -2134,12 +2134,14 @@ func newSequenceProvider(t *testing.T, seq *sequence) (*HuggingFace, *httptest.S
 			}
 		}
 		status := seq.statuses[i]
+		// WriteHeader has to come before the body; writing the body first pins
+		// the status at 200 and every retryable case silently turns into success.
+		w.WriteHeader(status)
 		if status == http.StatusOK {
 			io.WriteString(w, `[{"label":"a person","score":0.9},{"label":"a landscape","score":0.1}]`)
 		} else {
 			io.WriteString(w, `{"error":"temporary"}`)
 		}
-		w.WriteHeader(status)
 	}))
 	p, err := NewHuggingFace("test/model", "tok")
 	if err != nil {
@@ -2164,11 +2166,11 @@ func TestHFRetriesTransientFailures(t *testing.T) {
 		wantCalls int
 		wantOK    bool
 	}{
-		{"500 roi 200", []int{500, 200}, 2, true},
-		{"429 roi 200", []int{429, 200}, 2, true},
-		{"401 khong retry", []int{401, 200}, 1, false},
-		{"400 khong retry", []int{400, 200}, 1, false},
-		{"hai 500 van fail", []int{500, 503}, 2, false},
+		{"500 then 200", []int{500, 200}, 2, true},
+		{"429 then 200", []int{429, 200}, 2, true},
+		{"401 is not retried", []int{401, 200}, 1, false},
+		{"400 is not retried", []int{400, 200}, 1, false},
+		{"two 5xx still fails", []int{500, 503}, 2, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2194,12 +2196,15 @@ func TestHFRetriesTransientFailures(t *testing.T) {
 }
 
 func TestHFDoesNotRetryABrokenResponse(t *testing.T) {
-	// 200 nhung thieu ứng viên: goi lai cung ra ket qua nhu vay, nên không retry.
+	// The server answers 200 with both known prompts while the caller asked for
+	// a third candidate, so decode reports a short response. Asking again would
+	// produce the same short response, so this must be a single call.
+	cands := append(retryCands(), Candidate{Group: GroupGenre, ID: "food", Prompt: "a meal"})
 	seq := &sequence{statuses: []int{200}, headers: make([]map[string]string, 1)}
 	p, srv := newSequenceProvider(t, seq)
 	defer srv.Close()
 
-	if _, err := p.Score(context.Background(), testPhoto(), retryCands()); err == nil {
+	if _, err := p.Score(context.Background(), testPhoto(), cands); err == nil {
 		t.Fatal("want error for a short response")
 	} else if seq.calls != 1 {
 		t.Errorf("calls = %d, want 1: schema failures must not be retried", seq.calls)
@@ -2208,18 +2213,20 @@ func TestHFDoesNotRetryABrokenResponse(t *testing.T) {
 
 func TestHFRespectsContextDeadline(t *testing.T) {
 	blocked := make(chan struct{})
-	defer close(blocked)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		<-blocked // keu giu cho den khi test huy
+		<-blocked // held until the test unblocks it, or is canceled by the deadline
 	}))
+	// srv.Close waits for in-flight handlers, so unblocking must be the first
+	// defer to run: registration order puts it last, and defers run in reverse.
 	defer srv.Close()
+	defer close(blocked)
 
 	p, err := NewHuggingFace("test/model", "tok")
 	if err != nil {
 		t.Fatal(err)
 	}
 	p.BaseURL = srv.URL + "/models/"
-	p.Backoff = time.Hour // retry sleep dai; deadline phai thang
+	p.Backoff = time.Hour // a retry sleep this long must be cut short, not honoured
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
@@ -2300,7 +2307,7 @@ Giữ nguyên phần dựng `body`, chỉ đổi phần gọi HTTP:
 		case status == http.StatusOK:
 			scores, derr := p.decode(payload, cands)
 			if derr != nil {
-				return nil, derr // schema hỏng thì goi lai cung hong
+				return nil, derr // a broken schema fails the same way on a second call
 			}
 			return scores, nil
 		case !retryable(status):
@@ -2327,6 +2334,9 @@ Giữ nguyên phần dựng `body`, chỉ đổi phần gọi HTTP:
 Và thêm helper:
 
 ```go
+// retryable lists the statuses where asking again can plausibly help. 4xx other
+// than 429 is a complaint about the request itself, so repeating it is a waste
+// of the deadline.
 func retryable(status int) bool {
 	switch status {
 	case http.StatusTooManyRequests, http.StatusInternalServerError,
@@ -2339,6 +2349,8 @@ func retryable(status int) bool {
 ```
 
 `ctx.Done()` chắn trong `select` nghĩa là retry không bao giờ vượt thời hạn của cả lệnh: hết giờ là `ProviderError`, không có `needs_review` giả.
+
+**Lệch spec §7.2 có chủ đích:** spec ghi "backoff 500ms×2+jitter". Bản này bỏ jitter. Jitter sinh ra để rải đều nhiều client cùng retry một lúc; với trần **hai** lượt gọi cho một ảnh thì không có đàn request nào để rải, và một con số ngẫu nhiên trong đường retry sẽ làm test không tất định. Sau này nếu cho phép nhiều attempt hơn thì thêm jitter.
 
 - [ ] **Step 5: Chạy test, xác nhận pass**
 

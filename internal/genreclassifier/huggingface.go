@@ -44,7 +44,7 @@ func NewHuggingFace(model, token string) (*HuggingFace, error) {
 		BaseURL:  DefaultHFBaseURL,
 		HTTPC:    &http.Client{},
 		Backoff:  500 * time.Millisecond,
-		Attempts: 1,
+		Attempts: 2,
 	}, nil
 }
 
@@ -74,14 +74,51 @@ func (p *HuggingFace) Score(ctx context.Context, photo Photo, cands []Candidate)
 	if err != nil {
 		return nil, err
 	}
-	payload, status, _, err := p.postOnce(ctx, body)
-	if err != nil {
-		return nil, ProviderErrorf("request to %s failed: %v", p.Model, err)
+	delay := p.Backoff
+	var lastErr error
+	for attempt := 1; attempt <= p.Attempts; attempt++ {
+		payload, status, retryWait, err := p.postOnce(ctx, body)
+		switch {
+		case err != nil:
+			lastErr = ProviderErrorf("request to %s failed: %v", p.Model, err)
+		case status == http.StatusOK:
+			scores, derr := p.decode(payload, cands)
+			if derr != nil {
+				return nil, derr // a broken schema fails the same way on a second call
+			}
+			return scores, nil
+		case !retryable(status):
+			return nil, ProviderErrorf("HTTP %d from %s: %s", status, p.Model, snippet(payload))
+		default:
+			lastErr = ProviderErrorf("HTTP %d from %s: %s", status, p.Model, snippet(payload))
+			if retryWait > 0 {
+				delay = retryWait
+			}
+		}
+		if attempt == p.Attempts {
+			break
+		}
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return nil, ProviderErrorf("deadline while retrying %s: %v", p.Model, ctx.Err())
+		}
+		delay *= 2
 	}
-	if status != http.StatusOK {
-		return nil, ProviderErrorf("HTTP %d from %s: %s", status, p.Model, snippet(payload))
+	return nil, lastErr
+}
+
+// retryable lists the statuses where asking again can plausibly help. 4xx other
+// than 429 is a complaint about the request itself, so repeating it is a waste
+// of the deadline.
+func retryable(status int) bool {
+	switch status {
+	case http.StatusTooManyRequests, http.StatusInternalServerError,
+		http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
 	}
-	return p.decode(payload, cands)
 }
 
 func (p *HuggingFace) postOnce(ctx context.Context, body []byte) ([]byte, int, time.Duration, error) {
