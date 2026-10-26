@@ -1,0 +1,4 @@
+# Golden contract files are compared byte for byte. Without this rule a
+# contributor with core.autocrlf=true gets CRLF on checkout and the test fails
+# for a reason that has nothing to do with the contract.
+internal/genreclassifier/testdata/golden/** -text

@@ -1543,6 +1543,9 @@ ones; the scale-invariance test states the property that actually holds."
 - Create: `internal/genreclassifier/contract.go`
 - Create: `internal/genreclassifier/contract_test.go`
 - Create: `internal/genreclassifier/testdata/golden/portrait-classified.json`
+- Create: `.gitattributes` (khóa EOL cho riêng golden file — xem Step 0)
+
+`core.autocrlf=true` mặc định trên Windows sẽ checkout golden file với CRLF, và so sánh byte sẽ fail vì lý do không liên quan hợp đồng. Một rule `-text` cho `testdata/golden/**` giữ nguyên byte đã commit.
 
 **Interfaces:**
 - Consumes: `Decision`, `Alternative` (Task 6, 7).
@@ -1641,7 +1644,7 @@ func TestResultKeysAndEmptyArrays(t *testing.T) {
 			t.Errorf("missing contract key %s in %s", key, out)
 		}
 	}
-	// Hop dong yeu cau mot danh sach, khong phai null.
+	// The contract asks for a list, never for null.
 	if strings.Contains(out, "null") {
 		t.Errorf("empty lists must serialize as [] not null:\n%s", out)
 	}
