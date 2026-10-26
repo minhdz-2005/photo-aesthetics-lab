@@ -729,6 +729,8 @@ directly rather than through a committed fixture."
 
 Đây là chỗ quyết định hợp nhất hai lượt gọi (spec §3.1) được hiện thực hoá. Sai một ly là toàn bộ ngưỡng lệch theo.
 
+Hai chỗ của task này đã phải sửa so với bản plan ban đầu, vì ràng buộc của IEEE-754: `q` kiểm chứng bằng `==` nên điểm gốc phải chính xác trong binary (dùng `3` và `1`, không dùng `0.3` và `0.1` — `0.3/0.4` ra `0.7499999999999999`), và `+Inf` phải là `math.Inf(1)` chứ không phải `1e308 * 10`, vì hằng untyped overflow thì biên dịch fail chứ không thành `+Inf`.
+
 - [ ] **Step 1: Viết test fail**
 
 `internal/genreclassifier/decide_test.go`:
@@ -737,6 +739,7 @@ directly rather than through a committed fixture."
 package genreclassifier
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -758,7 +761,9 @@ func ids(shares []Share) string {
 }
 
 func TestGroupSharesRenormalizesWithinGroup(t *testing.T) {
-	shares, err := groupShares(map[string]float64{"a": 0.3, "b": 0.1}, genreCands("a", "b"))
+	// 3 and 1 are exact in binary floating point, so the expected shares 0.75
+	// and 0.25 can be compared with == instead of a tolerance.
+	shares, err := groupShares(map[string]float64{"a": 3, "b": 1}, genreCands("a", "b"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -767,6 +772,9 @@ func TestGroupSharesRenormalizesWithinGroup(t *testing.T) {
 	}
 	if shares[0].Q != 0.75 || shares[1].Q != 0.25 {
 		t.Errorf("Q = %v, %v; want 0.75, 0.25", shares[0].Q, shares[1].Q)
+	}
+	if shares[0].Raw != 3 {
+		t.Errorf("Raw = %v, want the untouched provider score 3", shares[0].Raw)
 	}
 }
 
@@ -807,7 +815,7 @@ func TestGroupSharesRejectsZeroMass(t *testing.T) {
 }
 
 func TestGroupSharesRejectsNonFiniteScore(t *testing.T) {
-	_, err := groupShares(map[string]float64{"a": 0.3, "b": 1e308 * 10}, genreCands("a", "b"))
+	_, err := groupShares(map[string]float64{"a": 0.3, "b": math.Inf(1)}, genreCands("a", "b"))
 	if err == nil {
 		t.Fatal("+Inf score must be an error")
 	}
@@ -862,7 +870,7 @@ func groupShares(scores map[string]float64, cands []Candidate) ([]Share, error) 
 		out[i].Q = out[i].Raw / sum
 	}
 	// SliceStable plus a score-only predicate keeps equal scores in the order
-	// the taxonomy declares them, which is what makes the tie-break all deterministic.
+	// the taxonomy declares them, which is what makes the tie-break deterministic.
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Raw > out[j].Raw })
 	return out, nil
 }
