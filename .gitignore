@@ -26,3 +26,10 @@ yarn-error.log*
 Thumbs.db
 .idea/
 .vscode/
+
+# Go
+bin/
+*.exe
+*.exe~
+*.out
+/genre-classify
