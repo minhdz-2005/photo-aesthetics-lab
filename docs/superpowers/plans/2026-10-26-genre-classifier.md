@@ -54,6 +54,8 @@ Ba chỗ plan **đi lệch** spec, có lý do, đều được ghi lại trong t
 2. **Task 7** — spec §9.4 khẳng định "mọi hàm đơn điệu dương" giữ nguyên kết quả `decide`. Sai về toán: renormalize chỉ bất biến với nhân vô hướng; hàm phi tuyến đổi `q` nên có thể đổi cả `status`. Plan test đúng hai tính chất sau: scale invariance và within-group order preservation.
 3. **Task 2** — thêm luật "hai ứng viên không được render ra cùng một prompt", vì provider map kết quả về id **theo text prompt**. Luật này hệ quả của wire protocol, spec chưa nêu.
 
+Khi chạy task, snippet nào trái với Global Constraints (comment tiếng Anh) hoặc trái IEEE-754 (so sánh `==` với số không chính xác) đã **sửa tại chỗ trong plan**, không chỉ trong code. Task 4 và Task 5 là hai chỗ bị như vậy.
+
 ---
 
 ## Task 1: Go module + nạp file taxonomy
@@ -950,30 +952,31 @@ func TestGenreCall(t *testing.T) {
 		wantRule    string
 	}{
 		{
-			name:        "qua floor va margin",
+			name:        "clears floor and margin",
 			q:           []float64{0.55, 0.20, 0.15, 0.10},
 			wantPrimary: "a", wantStatus: StatusClassified, wantRule: "floor+margin",
 		},
 		{
-			// N=4 deu 0.25, floor 0.375: 0.28 < 0.375 → khong xet margin.
-			name:        "truot floor",
+			// N=4 so uniform is 0.25 and the floor is 0.375: 0.28 misses it,
+			// so the margin is never consulted.
+			name:        "misses floor",
 			q:           []float64{0.28, 0.26, 0.24, 0.22},
 			wantPrimary: "other", wantStatus: StatusNeedsReview, wantRule: "floor",
 		},
 		{
-			// 0.40 qua floor 0.375, nhung cach 0.05 < margin 0.125.
-			name:        "truot margin",
+			// 0.40 clears the 0.375 floor but leads by 0.05, under the 0.125 margin.
+			name:        "misses margin",
 			q:           []float64{0.40, 0.35, 0.15, 0.10},
 			wantPrimary: "a", wantStatus: StatusNeedsReview, wantRule: "margin",
 		},
 		{
-			name:        "hoa nhat",
+			name:        "exact tie",
 			q:           []float64{0.5, 0.5, 0, 0},
 			wantPrimary: "a", wantStatus: StatusNeedsReview, wantRule: "margin",
 		},
 		{
-			// N=1 → deu 1.0, floor 1.5 → khong the nao vuot. Margin bo qua vi khong doi thu.
-			name:        "mot ung vien thi floor van chan",
+			// N=1 means the only share is 1.0, which a 1.5x floor can never pass.
+			name:        "single candidate still guarded by floor",
 			q:           []float64{1},
 			wantPrimary: "other", wantStatus: StatusNeedsReview, wantRule: "floor",
 		},
@@ -995,8 +998,9 @@ func TestGenreCall(t *testing.T) {
 }
 
 func TestGenreCallSingleCandidateSkipsMargin(t *testing.T) {
-	// voi N=1 thi q = 1.0 nen floor cua minV1 (1.5x) khong the nao vuot;
-	// ha floor xuong 1.0 de duong "bo qua margin" chay thay vi thanh code chet.
+	// With N=1 the only share is 1.0, so minV1's 1.5x floor can never be
+	// cleared. Dropping the floor to 1.0 exercises the no-runner-up branch
+	// instead of leaving it dead code.
 	th := minV1Thresholds
 	th.GenreMinShareRatio = 1.0
 	got := genreCall(shares(1), th, "other")
@@ -1030,8 +1034,8 @@ Expected: compile error `undefined: genreCall`.
 
 ```go
 const (
-	StatusClassified   = "classified"
-	StatusNeedsReview  = "needs_review"
+	StatusClassified  = "classified"
+	StatusNeedsReview = "needs_review"
 )
 
 // GenreCall is the verdict of the two genre thresholds. Rule records which
@@ -1042,6 +1046,9 @@ type GenreCall struct {
 	Rule    string
 }
 
+// Thresholds are multiples of the uniform share, never absolute probabilities:
+// that is the only form that still means something after renormalizing inside
+// a group and after the taxonomy changes its number of labels.
 func genreCall(shares []Share, th Thresholds, fallback string) GenreCall {
 	uniform := 1 / float64(len(shares))
 	leader := shares[0].Candidate.ID

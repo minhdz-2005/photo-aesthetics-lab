@@ -82,3 +82,98 @@ func TestGroupSharesRejectsNonFiniteScore(t *testing.T) {
 		t.Fatal("+Inf score must be an error")
 	}
 }
+
+func shares(q ...float64) []Share {
+	out := make([]Share, 0, len(q))
+	for i, v := range q {
+		out = append(out, Share{
+			Candidate: Candidate{Group: GroupGenre, ID: string(rune('a' + i))},
+			Raw:       v,
+			Q:         v,
+		})
+	}
+	return out
+}
+
+var minV1Thresholds = Thresholds{
+	GenreMinShareRatio: 1.5, GenreMinMarginRatio: 0.5,
+	GenreAlternativesMax: 3, TagMinShareRatio: 1.0, TagMax: 3,
+}
+
+func TestGenreCall(t *testing.T) {
+	cases := []struct {
+		name        string
+		q           []float64
+		wantPrimary string
+		wantStatus  string
+		wantRule    string
+	}{
+		{
+			name:        "clears floor and margin",
+			q:           []float64{0.55, 0.20, 0.15, 0.10},
+			wantPrimary: "a", wantStatus: StatusClassified, wantRule: "floor+margin",
+		},
+		{
+			// N=4 so uniform is 0.25 and the floor is 0.375: 0.28 misses it,
+			// so the margin is never consulted.
+			name:        "misses floor",
+			q:           []float64{0.28, 0.26, 0.24, 0.22},
+			wantPrimary: "other", wantStatus: StatusNeedsReview, wantRule: "floor",
+		},
+		{
+			// 0.40 clears the 0.375 floor but leads by 0.05, under the 0.125 margin.
+			name:        "misses margin",
+			q:           []float64{0.40, 0.35, 0.15, 0.10},
+			wantPrimary: "a", wantStatus: StatusNeedsReview, wantRule: "margin",
+		},
+		{
+			name:        "exact tie",
+			q:           []float64{0.5, 0.5, 0, 0},
+			wantPrimary: "a", wantStatus: StatusNeedsReview, wantRule: "margin",
+		},
+		{
+			// N=1 means the only share is 1.0, which a 1.5x floor can never pass.
+			name:        "single candidate still guarded by floor",
+			q:           []float64{1},
+			wantPrimary: "other", wantStatus: StatusNeedsReview, wantRule: "floor",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := genreCall(shares(c.q...), minV1Thresholds, "other")
+			if got.Primary != c.wantPrimary {
+				t.Errorf("Primary = %q, want %q", got.Primary, c.wantPrimary)
+			}
+			if got.Status != c.wantStatus {
+				t.Errorf("Status = %q, want %q", got.Status, c.wantStatus)
+			}
+			if got.Rule != c.wantRule {
+				t.Errorf("Rule = %q, want %q", got.Rule, c.wantRule)
+			}
+		})
+	}
+}
+
+func TestGenreCallSingleCandidateSkipsMargin(t *testing.T) {
+	// With N=1 the only share is 1.0, so minV1's 1.5x floor can never be
+	// cleared. Dropping the floor to 1.0 exercises the no-runner-up branch
+	// instead of leaving it dead code.
+	th := minV1Thresholds
+	th.GenreMinShareRatio = 1.0
+	got := genreCall(shares(1), th, "other")
+	if got.Primary != "a" || got.Status != StatusClassified || got.Rule != "single candidate" {
+		t.Errorf("got %+v, want a / classified / single candidate", got)
+	}
+}
+
+func TestGenreCallUsesThresholdsFromTaxonomy(t *testing.T) {
+	q := []float64{0.40, 0.35, 0.15, 0.10}
+	if got := genreCall(shares(q...), minV1Thresholds, "other"); got.Status != StatusNeedsReview {
+		t.Fatalf("baseline must be needs_review, got %q", got.Status)
+	}
+	loose := minV1Thresholds
+	loose.GenreMinMarginRatio = 0.1
+	if got := genreCall(shares(q...), loose, "other"); got.Status != StatusClassified {
+		t.Errorf("lowering the margin ratio must promote the call, got %q", got.Status)
+	}
+}
