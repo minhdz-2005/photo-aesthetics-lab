@@ -2411,10 +2411,8 @@ func (f *fakeProvider) Score(ctx context.Context, photo Photo, cands []Candidate
 	if f.err != nil {
 		return nil, f.err
 	}
-	return f.scorePhoto(), nil
+	return f.scores, nil
 }
-
-func (f *fakeProvider) scorePhoto() map[string]float64 { return f.scores }
 
 func goodScores() map[string]float64 {
 	return map[string]float64{
@@ -2423,7 +2421,7 @@ func goodScores() map[string]float64 {
 	}
 }
 
-func pipelineFixture(t *testing.T, _ Provider) (Config, *bytes.Buffer, *bytes.Buffer) {
+func pipelineFixture(t *testing.T) (Config, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 	return Config{
 		PhotoPath:    "testdata/photos/portrait.jpg",
@@ -2444,7 +2442,7 @@ func testDeps(fp Provider, out, errw io.Writer) Deps {
 }
 
 func TestRunWritesContractToStdout(t *testing.T) {
-	cfg, out, errOut := pipelineFixture(t, nil)
+	cfg, out, errOut := pipelineFixture(t)
 	fp := &fakeProvider{scores: goodScores()}
 	code := Run(context.Background(), cfg, testDeps(fp, out, errOut))
 
@@ -2470,17 +2468,17 @@ func TestRunExitCodes(t *testing.T) {
 		openErr  error
 		wantCode int
 	}{
-		{"needs_review van la 0", map[string]float64{
+		{"needs_review still exits 0", map[string]float64{
 			"portrait": 0.24, "landscape": 0.23, "street": 0.22, "food": 0.21,
 			"outdoor": 0.05, "indoor": 0.05,
 		}, nil, nil, ExitOK},
-		{"thieu diem la 2", map[string]float64{"portrait": 0.5}, nil, nil, ExitProvider},
-		{"provider loi la 2", nil, ProviderErrorf("HTTP 503"), nil, ExitProvider},
-		{"anh loi la 1", nil, nil, InputErrorf("photo bad: unreadable"), ExitInput},
+		{"missing score exits 2", map[string]float64{"portrait": 0.5}, nil, nil, ExitProvider},
+		{"provider error exits 2", nil, ProviderErrorf("HTTP 503"), nil, ExitProvider},
+		{"bad photo exits 1", nil, nil, InputErrorf("photo bad: unreadable"), ExitInput},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			cfg, out, errOut := pipelineFixture(t, nil)
+			cfg, out, errOut := pipelineFixture(t)
 			deps := testDeps(&fakeProvider{scores: c.scores, err: c.provider}, out, errOut)
 			if c.openErr != nil {
 				deps.Open = func(path string) (Photo, error) { return Photo{}, c.openErr }
@@ -2497,7 +2495,7 @@ func TestRunExitCodes(t *testing.T) {
 }
 
 func TestRunReportsMissingTaxonomyFile(t *testing.T) {
-	cfg, out, errOut := pipelineFixture(t, nil)
+	cfg, out, errOut := pipelineFixture(t)
 	cfg.TaxonomyPath = "testdata/taxonomy/does-not-exist.json"
 	deps := testDeps(&fakeProvider{scores: goodScores()}, out, errOut)
 
@@ -2510,7 +2508,7 @@ func TestRunReportsMissingTaxonomyFile(t *testing.T) {
 }
 
 func TestRunDebugGoesToStderrOnly(t *testing.T) {
-	cfg, out, errOut := pipelineFixture(t, nil)
+	cfg, out, errOut := pipelineFixture(t)
 	cfg.Debug = true
 	deps := testDeps(&fakeProvider{scores: goodScores()}, out, errOut)
 
@@ -2528,7 +2526,7 @@ func TestRunDebugGoesToStderrOnly(t *testing.T) {
 }
 
 func TestRunStopsWhenContextExpires(t *testing.T) {
-	cfg, out, errOut := pipelineFixture(t, nil)
+	cfg, out, errOut := pipelineFixture(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 0)
 	defer cancel()
 
