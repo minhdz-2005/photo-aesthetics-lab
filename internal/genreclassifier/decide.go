@@ -72,3 +72,48 @@ func genreCall(shares []Share, th Thresholds, fallback string) GenreCall {
 	}
 	return GenreCall{Primary: leader, Status: StatusClassified, Rule: "floor+margin"}
 }
+
+// Alternative is a diagnostic runner-up label. Score is the within-group
+// share, a ranking number, not a calibrated probability.
+type Alternative struct {
+	Genre string  `json:"genre"`
+	Score float64 `json:"score"`
+}
+
+// roundShare stabilises the emitted number: a float sum of probabilities is
+// not exact, and byte-level golden tests need a value that does not wobble.
+func roundShare(q float64) float64 { return math.Round(q*10000) / 10000 }
+
+func pickTags(shares []Share, th Thresholds) []string {
+	tags := []string{}
+	if len(shares) == 0 {
+		return tags
+	}
+	floor := th.TagMinShareRatio / float64(len(shares))
+	for _, s := range shares {
+		if len(tags) >= th.TagMax {
+			break
+		}
+		if s.Q >= floor {
+			tags = append(tags, s.Candidate.ID)
+		}
+	}
+	return tags
+}
+
+// pickAlternatives reports the labels that lost to the chosen one. When the
+// floor assigned the fallback genre nothing is excluded, so the leading
+// candidates still show up — that is exactly when a reviewer needs them.
+func pickAlternatives(shares []Share, max int, primary string) []Alternative {
+	out := []Alternative{}
+	for _, s := range shares {
+		if len(out) >= max {
+			break
+		}
+		if s.Candidate.ID == primary {
+			continue
+		}
+		out = append(out, Alternative{Genre: s.Candidate.ID, Score: roundShare(s.Q)})
+	}
+	return out
+}

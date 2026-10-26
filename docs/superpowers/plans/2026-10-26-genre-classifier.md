@@ -1125,13 +1125,13 @@ func TestPickTags(t *testing.T) {
 		q    []float64
 		want string
 	}{
-		// N=2, deu 0.5, TagMinShareRatio 1.0 → floor 0.5. Chi 0.6 vuot.
-		{"nhom hai tag lay mot", minV1Thresholds, []float64{0.6, 0.4}, "outdoor"},
-		// N=4, deu 0.25 → floor 0.25. 0.2 va 0.1 trot.
-		{"bo tag duoi deu", minV1Thresholds, []float64{0.4, 0.3, 0.2, 0.1}, "outdoor,indoor"},
-		// Floor = 0 nen ca 4 tag deu dat; dong nay do quy tac cat theo tag_max.
-		{"cat theo tag_max", zeroFloorThresholds(), []float64{0.4, 0.3, 0.2, 0.1}, "outdoor,indoor,close_up"},
-		{"nhom rong", minV1Thresholds, nil, ""},
+		// N=2 so the tag uniform is 0.5 and ratio 1.0 puts the floor at 0.5. Only 0.6 clears it.
+		{"two tags, one passes", minV1Thresholds, []float64{0.6, 0.4}, "outdoor"},
+		// N=4 so the floor is 0.25. 0.2 and 0.1 miss it.
+		{"drops below-average tags", minV1Thresholds, []float64{0.4, 0.3, 0.2, 0.1}, "outdoor,indoor"},
+		// Floor 0 so all four tags pass; this line is what exercises the tag_max cut.
+		{"cuts at tag_max", zeroFloorThresholds(), []float64{0.4, 0.3, 0.2, 0.1}, "outdoor,indoor,close_up"},
+		{"empty group", minV1Thresholds, nil, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1163,7 +1163,8 @@ func TestPickAlternatives(t *testing.T) {
 		t.Errorf("first alternative = %+v, want b/0.2105", normal[0])
 	}
 
-	// Khi floor trot, primary la other → khong loai nao ca, nhan dan dau van con.
+	// When the floor missed, primary is the fallback genre, so nothing is
+	// excluded and the leading candidates still show up.
 	fallback := pickAlternatives(shares(0.28, 0.26, 0.24, 0.22), 3, "other")
 	if len(fallback) != 3 || fallback[0].Genre != "a" || fallback[0].Score != 0.28 {
 		t.Errorf("fallback alternatives = %+v, want a/0.28 first", fallback)

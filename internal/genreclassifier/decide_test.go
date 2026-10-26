@@ -177,3 +177,81 @@ func TestGenreCallUsesThresholdsFromTaxonomy(t *testing.T) {
 		t.Errorf("lowering the margin ratio must promote the call, got %q", got.Status)
 	}
 }
+
+func tagShares(pairs ...float64) []Share {
+	names := []string{"outdoor", "indoor", "close_up", "night"}
+	out := make([]Share, 0, len(pairs))
+	for i, q := range pairs {
+		out = append(out, Share{
+			Candidate: Candidate{Group: GroupTag, ID: names[i]},
+			Raw:       q, Q: q,
+		})
+	}
+	return out
+}
+
+func zeroFloorThresholds() Thresholds {
+	th := minV1Thresholds
+	th.TagMinShareRatio = 0
+	return th
+}
+
+func TestPickTags(t *testing.T) {
+	cases := []struct {
+		name string
+		th   Thresholds
+		q    []float64
+		want string
+	}{
+		// N=2 so the tag uniform is 0.5 and ratio 1.0 puts the floor at 0.5. Only 0.6 clears it.
+		{"two tags, one passes", minV1Thresholds, []float64{0.6, 0.4}, "outdoor"},
+		// N=4 so the floor is 0.25. 0.2 and 0.1 miss it.
+		{"drops below-average tags", minV1Thresholds, []float64{0.4, 0.3, 0.2, 0.1}, "outdoor,indoor"},
+		// Floor 0 so all four tags pass; this line is what exercises the tag_max cut.
+		{"cuts at tag_max", zeroFloorThresholds(), []float64{0.4, 0.3, 0.2, 0.1}, "outdoor,indoor,close_up"},
+		{"empty group", minV1Thresholds, nil, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := pickTags(tagShares(c.q...), c.th)
+			if strings.Join(got, ",") != c.want {
+				t.Errorf("tags = %v, want %q", got, c.want)
+			}
+			if got == nil {
+				t.Error("pickTags must return an empty slice, not nil: nil marshals to JSON null")
+			}
+		})
+	}
+}
+
+func TestPickAlternatives(t *testing.T) {
+	s := shares(0.5263, 0.2105, 0.1579, 0.1053)
+
+	normal := pickAlternatives(s, 3, "a")
+	if got, want := len(normal), 3; got != want {
+		t.Fatalf("len = %d, want %d", got, want)
+	}
+	if normal[0].Genre != "b" || normal[0].Score != 0.2105 {
+		t.Errorf("first alternative = %+v, want b/0.2105", normal[0])
+	}
+
+	// When the floor missed, primary is the fallback genre, so nothing is
+	// excluded and the leading candidates still show up.
+	fallback := pickAlternatives(shares(0.28, 0.26, 0.24, 0.22), 3, "other")
+	if len(fallback) != 3 || fallback[0].Genre != "a" || fallback[0].Score != 0.28 {
+		t.Errorf("fallback alternatives = %+v, want a/0.28 first", fallback)
+	}
+
+	if out := pickAlternatives(s, 3, "a"); out == nil {
+		t.Error("must return empty slice, not nil")
+	}
+}
+
+func TestRoundShare(t *testing.T) {
+	if got := roundShare(0.5263157894736842); got != 0.5263 {
+		t.Errorf("roundShare = %v, want 0.5263", got)
+	}
+	if got := roundShare(0.10526315789473684); got != 0.1053 {
+		t.Errorf("roundShare = %v, want 0.1053", got)
+	}
+}
