@@ -3138,8 +3138,15 @@ git commit -m "Probe the live endpoint for the merged-call assumption
 The whole threshold scheme rests on the model scoring every candidate, which
 documentation does not guarantee. The probe is build-tagged so the default test
 run stays offline and fast, and the finding gets written back into the provider
-contract instead of staying in a terminal buffer."
+contract instead of staying in a terminal buffer.
+
+The probe has not been run yet: it needs an HF token and a real photo, so
+model-provider/README.md still says the assumption is unverified."
 ```
+
+`ai/model-provider/README.md` chỉ đổi câu "Chưa kiểm chứng" sau khi Step 3 thật sự chạy. Nếu commit này tạo
+trước khi có token, **không** sửa README non — một dòng "đã kiểm chứng ngày X" chưa từng xảy ra là tài liệu
+dối, còn nghiêm trọng hơn cả việc giả định chưa được đo.
 
 ---
 
