@@ -1299,7 +1299,8 @@ func loadMinV1(t *testing.T) *Taxonomy {
 }
 
 func TestDecideClassifiesClearPortrait(t *testing.T) {
-	// Genre tong 0.95, tag tong 0.05; hop = 1.0 nhu softmax tren union.
+	// Genre mass 0.95, tag mass 0.05; the union sums to 1.0 like a softmax
+	// over all candidates at once.
 	scores := map[string]float64{
 		"portrait": 0.50, "landscape": 0.20, "street": 0.15, "food": 0.10,
 		"outdoor": 0.03, "indoor": 0.02,
@@ -1356,7 +1357,7 @@ func TestDecideAssignsOtherWhenFloorFails(t *testing.T) {
 func TestDecideRejectsMissingScore(t *testing.T) {
 	scores := map[string]float64{
 		"portrait": 0.5, "landscape": 0.2, "street": 0.15,
-		"outdoor": 0.03, "indoor": 0.02, // food thieu
+		"outdoor": 0.03, "indoor": 0.02, // food is missing
 	}
 	if _, _, err := Decide(scores, loadMinV1(t)); err == nil {
 		t.Fatal("a missing candidate score must be an error")

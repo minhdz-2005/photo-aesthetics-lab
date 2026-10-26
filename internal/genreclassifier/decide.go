@@ -117,3 +117,43 @@ func pickAlternatives(shares []Share, max int, primary string) []Alternative {
 	}
 	return out
 }
+
+// Decision is the step 1 verdict before it becomes contract JSON.
+type Decision struct {
+	PrimaryGenre  string
+	Status        string
+	SecondaryTags []string
+	Alternatives  []Alternative
+}
+
+// Detail keeps the per-group shares so --debug and evaluation records can see
+// what the thresholds looked at, plus which rule fired. It never enters the
+// contract.
+type Detail struct {
+	Genre []Share
+	Tags  []Share
+	Rule  string
+}
+
+func Decide(scores map[string]float64, tax *Taxonomy) (Decision, Detail, error) {
+	genreShares, err := groupShares(scores, tax.Candidates(GroupGenre))
+	if err != nil {
+		return Decision{}, Detail{}, err
+	}
+
+	var tagShares []Share
+	if tags := tax.Candidates(GroupTag); len(tags) > 0 {
+		tagShares, err = groupShares(scores, tags)
+		if err != nil {
+			return Decision{}, Detail{}, err
+		}
+	}
+
+	call := genreCall(genreShares, tax.Thresholds, tax.FallbackGenre)
+	return Decision{
+		PrimaryGenre:  call.Primary,
+		Status:        call.Status,
+		SecondaryTags: pickTags(tagShares, tax.Thresholds),
+		Alternatives:  pickAlternatives(genreShares, tax.Thresholds.GenreAlternativesMax, call.Primary),
+	}, Detail{Genre: genreShares, Tags: tagShares, Rule: call.Rule}, nil
+}

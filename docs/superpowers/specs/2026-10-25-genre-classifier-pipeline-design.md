@@ -274,7 +274,7 @@ Ca cuối bắt buộc: renormalize trên tổng bằng 0 là chỗ duy nhất `
 
 Không ca nào ở §9.3 bắt được hai rủi ro này:
 
-- **Bất biến theo tỉ lệ:** với mọi hàm đơn điệu dương `f` áp lên toàn bộ điểm (nhân 2, lũy thừa, đổi thang), kết quả `decide` phải **không đổi**. Nếu đổi, code còn dùng điểm tuyệt đối ở đâu đó.
+- **Bất biến theo tỉ lệ:** nhân **toàn bộ** điểm thô với cùng một thừa số `c > 0` thì kết quả `decide` phải không đổi — đây là phát biểu đúng của tính bất biến. Một hàm đơn điệu *phi tuyến* thì **không** giữ kết quả: nó đổi tỷ lệ giữa các `q` nên có thể đổi cả `status`. Điều duy nhất mọi hàm đơn điệu đảm bảo là thứ tự trong nhóm không đổi.
 - **Độc lập xuyên nhóm:** hai đầu vào chỉ khác điểm `tag` phải cho phần `genre` (`primary_genre`, `status`, `alternatives`) **giống nhau từng byte**. Đây là cách kiểm chứng câu "không so điểm xuyên nhóm" mà không cần đọc code.
 
 ### 9.5 Golden JSON
