@@ -181,12 +181,13 @@ import (
 	"fmt"
 )
 
-// InputError: dữ liệu phía ta sai (ảnh, taxonomy, cờ, token thiếu). Exit 1.
+// InputError marks a problem with our own inputs: the photo, the taxonomy, a
+// flag, a missing token. Exit 1.
 type InputError struct{ msg string }
 
 func (e *InputError) Error() string { return e.msg }
 
-// ProviderError: thế giới bên ngoài trả về thứ không dùng được. Exit 2.
+// ProviderError marks the outside world returning something unusable. Exit 2.
 type ProviderError struct{ msg string }
 
 func (e *ProviderError) Error() string { return e.msg }
@@ -1839,7 +1840,7 @@ func TestHFScoreMapsLabelsBackToIDs(t *testing.T) {
 	if got.contentTyp != "application/json" {
 		t.Errorf("Content-Type = %q", got.contentTyp)
 	}
-	// Thu tu gui len phai la thu tu taxonomy, khong phai thu tu response.
+	// The order sent is the taxonomy order, not the order of the response.
 	if strings.Join(got.labels, "|") != "a photo of a person|a photo of a landscape|a photo of outdoors" {
 		t.Errorf("candidate_labels = %v", got.labels)
 	}
@@ -1863,7 +1864,9 @@ func TestHFScoreRejectsUnusableResponses(t *testing.T) {
 		{"missing candidate", http.StatusOK, `[{"label":"a person","score":0.9}]`, "of 2 candidates"},
 		{"unknown label", http.StatusOK, `[{"label":"a person","score":0.5},{"label":"a cat","score":0.5}]`, "unknown label"},
 		{"not an array", http.StatusOK, `{"error":"model is loading"}`, "not a [{label,score}] array"},
-		{"infinite score", http.StatusOK, `[{"label":"a person","score":1e400},{"label":"a landscape","score":0.1}]`, "non-finite"},
+		// JSON has no Infinity literal, and Go's decoder refuses a number that
+		// does not fit a float64, so a non-finite score can never reach decide.
+		{"out-of-range number", http.StatusOK, `[{"label":"a person","score":1e400},{"label":"a landscape","score":0.1}]`, "not a [{label,score}] array"},
 		{"server error", http.StatusInternalServerError, `{"error":"boom"}`, "HTTP 500"},
 		{"bad request", http.StatusBadRequest, `{"error":"invalid input"}`, "HTTP 400"},
 	}
@@ -1915,8 +1918,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
-	"math"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -1977,7 +1980,7 @@ func (p *HuggingFace) Score(ctx context.Context, photo Photo, cands []Candidate)
 		prompts[i] = c.Prompt
 	}
 	body, err := json.Marshal(hfRequest{
-		Inputs: "data:" + photo.MIME + ";base64," + base64.StdEncoding.EncodeToString(photo.Bytes),
+		Inputs:     "data:" + photo.MIME + ";base64," + base64.StdEncoding.EncodeToString(photo.Bytes),
 		Parameters: hfParameters{Candidates: prompts},
 	})
 	if err != nil {
@@ -2015,7 +2018,9 @@ func (p *HuggingFace) postOnce(ctx context.Context, body []byte) ([]byte, int, t
 }
 
 // decode keys results by candidate id. A short list is fatal, not trimmed:
-// per-group renormalization needs every score (spec §3.1).
+// per-group renormalization needs every score (spec §3.1). Scores arriving here
+// are always finite — JSON cannot spell Infinity and the decoder refuses
+// numbers that do not fit a float64.
 func (p *HuggingFace) decode(payload []byte, cands []Candidate) (map[string]float64, error) {
 	var rows []hfResult
 	if err := json.Unmarshal(payload, &rows); err != nil {
@@ -2030,9 +2035,6 @@ func (p *HuggingFace) decode(payload []byte, cands []Candidate) (map[string]floa
 		c, ok := byPrompt[r.Label]
 		if !ok {
 			return nil, ProviderErrorf("model returned unknown label %q", r.Label)
-		}
-		if math.IsNaN(r.Score) || math.IsInf(r.Score, 0) {
-			return nil, ProviderErrorf("non-finite score %v for candidate %q", r.Score, c.ID)
 		}
 		scores[c.ID] = r.Score
 	}
@@ -2070,7 +2072,7 @@ func snippet(payload []byte) string {
 }
 ```
 
-`retryAfter` cần `import "strconv"`. Thêm `"infinite score"` vào test được phát hiện ở `decode`: `1e400` unmarshal thành `+Inf` (thành thật, không phải nội suy).
+`retryAfter` cần `import "strconv"`. Bản nháp đầu còn chặn `non-finite score` trong `decode` và một ca test `1e400` chờ substring `non-finite`; **đã xóa vì không bao giờ chạy**: `json.Unmarshal` trả error trước (`json: cannot unmarshal number 1e400 into Go struct field .0.score of type float64`), nên điểm không hữu hạn **không thể** đến `decode`. Ca test vẫn giữ nhưng đổi kỳ vọng thành `not a [{label,score}] array` — nó chứng minh một số ngoài tầm là lỗi, không phải `+Inf` âm thầm. Chặn `IsNaN/IsInf` vẫn còn ở `groupShares`, nơi fake provider ở Task 11 chạm được.
 
 - [ ] **Step 5: Chạy test, xác nhận pass**
 

@@ -1,16 +1,18 @@
 package genreclassifier
 
 import (
+	"context"
 	"errors"
 	"fmt"
 )
 
-// InputError: dữ liệu phía ta sai (ảnh, taxonomy, cờ, token thiếu). Exit 1.
+// InputError marks a problem with our own inputs: the photo, the taxonomy, a
+// flag, a missing token. Exit 1.
 type InputError struct{ msg string }
 
 func (e *InputError) Error() string { return e.msg }
 
-// ProviderError: thế giới bên ngoài trả về thứ không dùng được. Exit 2.
+// ProviderError marks the outside world returning something unusable. Exit 2.
 type ProviderError struct{ msg string }
 
 func (e *ProviderError) Error() string { return e.msg }
@@ -29,4 +31,11 @@ func isInput(err error) bool {
 func isProvider(err error) bool {
 	var target *ProviderError
 	return errors.As(err, &target)
+}
+
+// Provider scores every candidate in one call and keys the result by candidate
+// id. It never sets thresholds and never decides other or needs_review: that
+// is the caller's job (ai/model-provider README).
+type Provider interface {
+	Score(ctx context.Context, photo Photo, cands []Candidate) (map[string]float64, error)
 }
