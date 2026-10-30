@@ -4,7 +4,7 @@ Bước 1 trong luồng. Nhận một ảnh và trả thể loại chính để 
 
 Chi tiết gốc: [docs/step-01-image-genre-classification.md](../../docs/step-01-image-genre-classification.md)
 
-Trạng thái: **đang implement** theo [spec](../../docs/superpowers/specs/2026-10-25-genre-classifier-pipeline-design.md) và [plan](../../docs/superpowers/plans/2026-10-26-genre-classifier.md). Code: `internal/genreclassifier` (package) và `cmd/genre-classify` (CLI); dữ liệu: [taxonomy/genre-v1.json](taxonomy/genre-v1.json).
+Trạng thái: **chưa có code**. Bản Go đầu tiên đã bị gỡ vì cấu trúc quá cồng kềnh so với việc chỉ gọi một model; bước 1 sẽ làm lại theo cấu trúc gọn hơn. Thứ còn dùng được: nhãn, prompt template và ngưỡng trong [taxonomy/genre-v1.json](taxonomy/genre-v1.json).
 
 ## Nhiệm vụ
 
